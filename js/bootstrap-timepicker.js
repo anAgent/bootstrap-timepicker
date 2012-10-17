@@ -6,7 +6,9 @@
  *
  * Created By:
  * Joris de Wit @joris_dewit
- *
+ * Forked By: 
+ *       Aaron Moline @anAgent
+ *       Added the ability to show/hide hours
  * Contributions By:
  * Gilbert @mindeavor
  * Koen Punt info@koenpunt.nl
@@ -40,6 +42,7 @@
         this.secondStep = this.options.secondStep || this.secondStep;
         this.showMeridian = this.options.showMeridian || this.showMeridian;
         this.showSeconds = this.options.showSeconds || this.showSeconds;
+        this.showHours = this.options.showHours || this.showHours;
         this.showInputs = this.options.showInputs || this.showInputs;
         this.disableFocus = this.options.disableFocus || this.disableFocus;
         this.template = this.options.template || this.template;
@@ -101,11 +104,13 @@
             e.preventDefault();
 
             if (this.open) {
+                if (this.disableFocus) {
+                    this.$element.blur();
+                }
                 return;
             }
 
             this.$element.trigger('show');
-
             if (this.disableFocus) {
                 this.$element.blur();
             }
@@ -170,6 +175,11 @@
                             this.hideWidget();
                         }
                     } else {
+                        if (this.showHours) {
+                            if (input == 'hour') {
+                                this.hideWidget();
+                            }
+                        }
                         if (this.showSeconds) { 
                             if (input == 'second') {
                                 this.hideWidget();
@@ -223,6 +233,7 @@
 
         , elementKeypress: function(e) {
             var input = this.$element.get(0);
+            console.log("key:", e.keyCode)
             switch (e.keyCode) {
                 case 0: //input
                 break;
@@ -234,6 +245,12 @@
                             this.highlightNextUnit();
                         }
                     } else {
+                        if (this.showHours) {
+                            if (this.highlightedUnit != 'hour') {
+                                e.preventDefault();
+                                this.highlightNextUnit();
+                            }
+                        }
                         if (this.showSeconds) { 
                             if (this.highlightedUnit != 'second') {
                                 e.preventDefault();
@@ -244,7 +261,7 @@
                                 e.preventDefault();
                                 this.highlightNextUnit();
                             }
-                        }
+                        } 
                     }
                 break;
                 case 27: // escape
@@ -299,7 +316,7 @@
             }
         }
 
-        , setValues: function(time) {
+        , setValues: function (time) {
             if (this.showMeridian) {
                 var arr = time.split(' ');
                 var timeArray = arr[0].split(':');
@@ -307,10 +324,16 @@
             } else {
                 var timeArray = time.split(':');
             }
+            if (this.showHours) {
+                this.hour = parseInt(timeArray[0], 10);
+                this.minute = parseInt(timeArray[1], 10);
+                this.second = parseInt(timeArray[2], 10);
+            } else {
+                //this.hour = parseInt(timeArray[0], 10);
+                this.minute = parseInt(timeArray[0], 10);
+                this.second = parseInt(timeArray[1], 10);
+            }
 
-            this.hour = parseInt(timeArray[0], 10);
-            this.minute = parseInt(timeArray[1], 10);
-            this.second = parseInt(timeArray[2], 10);
 
             if (isNaN(this.hour)) {
                 this.hour = 0;
@@ -336,10 +359,12 @@
                     this.meridian = 'AM';
                 }
             } else {
-                 if (this.hour >= 24) {
-                    this.hour = 23;
-                } else if (this.hour < 0) {
-                    this.hour = 0;
+                if (this.showHours) {
+                    if (this.hour >= 24) {
+                        this.hour = 23;
+                    } else if (this.hour < 0) {
+                        this.hour = 0;
+                    }
                 }
             }
 
@@ -412,12 +437,13 @@
             }
         }
 
-        , formatTime: function(hour, minute, second, meridian) {
+        , formatTime: function (hour, minute, second, meridian) {
             hour = hour < 10 ? '0' + hour : hour;
             minute = minute < 10 ? '0' + minute : minute;
             second = second < 10 ? '0' + second : second;
-
-            return hour + ':' + minute + (this.showSeconds ? ':' + second : '') + (this.showMeridian ? ' ' + meridian : '');
+            var timestring = (this.showHours ? (hour + ':') : '') + minute + (this.showSeconds ? ':' + second : '') + (this.showMeridian ? ' ' + meridian : '');
+            //console.log("timestring: ", timestring);
+            return timestring
         }
 
         , getTime: function() {
@@ -462,7 +488,9 @@
 
         , updateWidget: function() {
             if (this.showInputs) {
-                this.$widget.find('input.bootstrap-timepicker-hour').val(this.hour < 10 ? '0' + this.hour : this.hour);
+                if (this.showHours) {
+                    this.$widget.find('input.bootstrap-timepicker-hour').val(this.hour < 10 ? '0' + this.hour : this.hour);
+                }
                 this.$widget.find('input.bootstrap-timepicker-minute').val(this.minute < 10 ? '0' + this.minute : this.minute);
                 if (this.showSeconds) {
                     this.$widget.find('input.bootstrap-timepicker-second').val(this.second < 10 ? '0' + this.second : this.second);
@@ -471,7 +499,9 @@
                     this.$widget.find('input.bootstrap-timepicker-meridian').val(this.meridian);
                 }
             } else {
-                this.$widget.find('span.bootstrap-timepicker-hour').text(this.hour);
+                if (this.showHours) {
+                    this.$widget.find('span.bootstrap-timepicker-hour').text(this.hour);
+                }
                 this.$widget.find('span.bootstrap-timepicker-minute').text(this.minute < 10 ? '0' + this.minute : this.minute);
                 if (this.showSeconds) {
                     this.$widget.find('span.bootstrap-timepicker-second').text(this.second < 10 ? '0' + this.second : this.second);
@@ -491,7 +521,9 @@
         }
 
         , updateFromWidgetInputs: function () {
-            var time = $('input.bootstrap-timepicker-hour', this.$widget).val() + ':' + 
+            var time = (this.showHours ?
+                       $('input.bootstrap-timepicker-hour', this.$widget).val() + ':'
+                       : '') +
                        $('input.bootstrap-timepicker-minute', this.$widget).val() +
                        (this.showSeconds ? 
                            ':' + $('input.bootstrap-timepicker-second', this.$widget).val() 
@@ -499,7 +531,7 @@
                        (this.showMeridian ? 
                            ' ' + $('input.bootstrap-timepicker-meridian', this.$widget).val() 
                         : '');
-
+            //console.log("updateFromWidgetInputs: ", time);
             this.setValues(time);
         }
 
@@ -542,7 +574,11 @@
         , highlightNextUnit: function() {
             switch (this.highlightedUnit) {
                 case 'hour':
-                    this.highlightMinute();
+                    if (this.showHours) {
+                        this.highlightHour();
+                    } else {
+                        this.highlightSecond();
+                    }
                 break;
                 case 'minute':
                     if (this.showSeconds) {
@@ -563,7 +599,11 @@
         , highlightPrevUnit: function() {
             switch (this.highlightedUnit) {
                 case 'hour':
-                    this.highlightMeridian();
+                    if (this.showHours) {
+                        this.highlightMeridian();
+                    } else {
+                        this.highlightSecond();
+                    }
                 break;
                 case 'minute':
                     this.highlightHour();
@@ -582,8 +622,12 @@
         }
 
         , highlightHour: function() {
-            this.highlightedUnit = 'hour';
-            this.$element.get(0).setSelectionRange(0,2); 
+            this.highlightedUnit = 'hour';            
+            if (this.showHours) {
+                this.$element.get(0).setSelectionRange(0, 2);
+            } else {
+                this.$element.get(0).setSelectionRange(3, 5);
+            }
         }
 
         , highlightMinute: function() {
@@ -652,6 +696,7 @@
             } else {
                 this.minute = newVal;
             }
+            this.update();
         }
 
         , incrementSecond: function() {
@@ -696,22 +741,26 @@
                 var meridianTemplate = '<span class="bootstrap-timepicker-meridian"></span>';
             }
             var templateContent = '<table class="'+ (this.showSeconds ? 'show-seconds' : '') +' '+ (this.showMeridian ? 'show-meridian' : '') +'">'+
-                                       '<tr>'+
-                                           '<td><a href="#" data-action="incrementHour"><i class="icon-chevron-up"></i></a></td>'+
-                                           '<td class="separator">&nbsp;</td>'+
-                                           '<td><a href="#" data-action="incrementMinute"><i class="icon-chevron-up"></i></a></td>'+
+                                       '<tr>' +
+                                           (this.showHours ?
+                                           '<td><a href="#" data-action="incrementHour"><i class="icon-chevron-up">{</i></a></td>'+
+                                           '<td class="separator">&nbsp;</td>'
+                                           : '') +
+                                           '<td><a href="#" data-action="incrementMinute"><i class="icon-chevron-up">{</i></a></td>'+
                                            (this.showSeconds ? 
                                                '<td class="separator">&nbsp;</td>'+
-                                               '<td><a href="#" data-action="incrementSecond"><i class="icon-chevron-up"></i></a></td>'
+                                               '<td><a href="#" data-action="incrementSecond"><i class="icon-chevron-up">{</i></a></td>'
                                            : '') +
                                            (this.showMeridian ? 
                                                '<td class="separator">&nbsp;</td>'+
-                                               '<td class="meridian-column"><a href="#" data-action="toggleMeridian"><i class="icon-chevron-up"></i></a></td>'
+                                               '<td class="meridian-column"><a href="#" data-action="toggleMeridian"><i class="icon-chevron-up">{</i></a></td>'
                                            : '') +
                                        '</tr>'+
-                                       '<tr>'+
+                                       '<tr>' +
+                                           (this.showHours ?
                                            '<td>'+ hourTemplate +'</td> '+
-                                           '<td class="separator">:</td>'+
+                                           '<td class="separator">:</td>'
+                                           : '') +
                                            '<td>'+ minuteTemplate +'</td> '+
                                            (this.showSeconds ? 
                                                 '<td class="separator">:</td>'+
@@ -722,17 +771,19 @@
                                                 '<td>'+ meridianTemplate +'</td>'
                                            : '') +
                                        '</tr>'+
-                                       '<tr>'+
-                                           '<td><a href="#" data-action="decrementHour"><i class="icon-chevron-down"></i></a></td>'+
-                                           '<td class="separator"></td>'+
-                                           '<td><a href="#" data-action="decrementMinute"><i class="icon-chevron-down"></i></a></td>'+
+                                       '<tr>' +
+                                           (this.showHours ?
+                                           '<td><a href="#" data-action="decrementHour"><i class="icon-chevron-down">}</i></a></td>' +
+                                           '<td class="separator"></td>'
+                                           : '') +
+                                           '<td><a href="#" data-action="decrementMinute"><i class="icon-chevron-down">}</i></a></td>'+
                                            (this.showSeconds ? 
                                                 '<td class="separator">&nbsp;</td>'+
-                                                '<td><a href="#" data-action="decrementSecond"><i class="icon-chevron-down"></i></a></td>' 
+                                                '<td><a href="#" data-action="decrementSecond"><i class="icon-chevron-down">}</i></a></td>' 
                                            : '') +
                                            (this.showMeridian ? 
                                                 '<td class="separator">&nbsp;</td>'+
-                                                '<td><a href="#" data-action="toggleMeridian"><i class="icon-chevron-down"></i></a></td>'
+                                                '<td><a href="#" data-action="toggleMeridian"><i class="icon-chevron-down">}</i></a></td>'
                                            : '') +
                                        '</tr>'+
                                    '</table>';
@@ -787,8 +838,9 @@
       minuteStep: 15
     , secondStep: 15
     , disableFocus: false
-    , defaultTime: 'current'
+    , defaultTime: false
     , showSeconds: false
+    , showHours: true
     , showInputs: true
     , showMeridian: true
     , template: 'dropdown'
